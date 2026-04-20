@@ -103,6 +103,24 @@ impl NodeCtx {
         &self.kind_id
     }
 
+    /// Clone of the graph access handle.
+    ///
+    /// Exposed so a behavior that must continue work after `on_message`
+    /// returns (async I/O spawned on a tokio task, long-running computation
+    /// handed to a background worker) can carry a `Send + Sync + 'static`
+    /// handle that writes slots without holding the `&NodeCtx` ref. The
+    /// returned `Arc` bypasses `update_status`' slot-role check — the caller
+    /// is responsible for writing a slot that exists on the manifest.
+    pub fn graph(&self) -> Arc<dyn GraphAccess> {
+        self.graph.clone()
+    }
+
+    /// Clone of the emit sink, paired with [`Self::graph`] for the same
+    /// async/background-work use case.
+    pub fn emit_sink(&self) -> Arc<dyn EmitSink> {
+        self.emit_sink.clone()
+    }
+
     pub fn manifest(&self) -> &KindManifest {
         &self.manifest
     }

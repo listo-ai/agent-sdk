@@ -38,11 +38,11 @@ pub mod process;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+pub use blocks_sdk_macros::NodeKind;
 pub use ctx::{
     DynBehavior, EmitSink, GraphAccess, NodeCtx, TimerHandle, TimerScheduler, TypedBehavior,
 };
 pub use error::NodeError;
-pub use blocks_sdk_macros::NodeKind;
 pub use node::{InputPort, NodeBehavior, NodeKind};
 pub use settings::ResolvedSettings;
 

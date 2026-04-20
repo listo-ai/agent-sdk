@@ -121,6 +121,16 @@ impl NodeCtx {
         self.read_self_role(slot, spi::SlotRole::Config)
     }
 
+    /// Read the last `Msg` emitted on an output port — the persisted
+    /// value of an output-role slot. A source node uses this instead of
+    /// a mirror status slot to recover its previous state across ticks
+    /// and restarts (see docs/design/NODE-RED-MODEL.md Stage 4 —
+    /// mirror slots deleted; the output slot IS the current value).
+    /// Returns `JsonValue::Null` if nothing has been emitted yet.
+    pub fn read_output(&self, port: &str) -> Result<JsonValue, NodeError> {
+        self.read_self_role(port, spi::SlotRole::Output)
+    }
+
     /// Write a status slot on this node.
     pub fn update_status(&self, slot: &str, value: JsonValue) -> Result<(), NodeError> {
         let schema = self.find_slot(slot)?;

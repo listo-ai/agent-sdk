@@ -1,18 +1,18 @@
-//! Process-plugin runtime (feature `process`).
+//! Process-block runtime (feature `process`).
 //!
-//! Plugin authors never hand-write gRPC. They provide identity +
+//! Block authors never hand-write gRPC. They provide identity +
 //! declared kinds and (optionally) handlers for `Invoke` / `Health`
 //! / `Discover` / `Subscribe`; [`run_process_plugin`] wires up the
 //! tonic server on the Unix-domain socket the supervisor passes via
 //! the `US_PLUGIN_SOCKET` env var.
 //!
-//! The minimum viable plugin is four lines of `main`:
+//! The minimum viable block is four lines of `main`:
 //!
 //! ```ignore
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     extensions_sdk::process::run_process_plugin(
-//!         extensions_sdk::process::PluginIdentity {
+//!     blocks_sdk::process::run_process_plugin(
+//!         blocks_sdk::process::BlockIdentity {
 //!             id: "com.acme.hello".into(),
 //!             version: "0.1.0".into(),
 //!             capabilities: vec![],
@@ -40,19 +40,19 @@ use transport_grpc::{
     SubscribeRequest,
 };
 
-/// Identity returned by the plugin's `Describe` RPC.
+/// Identity returned by the block's `Describe` RPC.
 ///
-/// `id` must equal the plugin directory name (the supervisor
+/// `id` must equal the block directory name (the supervisor
 /// cross-checks this and refuses on mismatch).
 #[derive(Debug, Clone)]
-pub struct PluginIdentity {
+pub struct BlockIdentity {
     pub id: String,
     pub version: String,
     pub capabilities: Vec<String>,
     pub kinds: Vec<KindDeclaration>,
 }
 
-impl PluginIdentity {
+impl BlockIdentity {
     pub fn new(id: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -78,7 +78,7 @@ pub enum ProcessError {
 }
 
 /// Name of the env var the supervisor uses to pass the UDS path.
-/// Kept in sync with `extensions_host::supervisor::SOCKET_ENV`.
+/// Kept in sync with `blocks_host::supervisor::SOCKET_ENV`.
 pub const SOCKET_ENV: &str = "US_PLUGIN_SOCKET";
 
 /// Serve the `Extension` gRPC service on the UDS the supervisor
@@ -88,7 +88,7 @@ pub const SOCKET_ENV: &str = "US_PLUGIN_SOCKET";
 /// handlers for `Invoke`/`Discover`/`Subscribe` aren't plumbed yet —
 /// this lands in Stage 3c when the `NodeBehavior` trait gets its
 /// process adapter.
-pub async fn run_process_plugin(identity: PluginIdentity) -> Result<(), ProcessError> {
+pub async fn run_process_plugin(identity: BlockIdentity) -> Result<(), ProcessError> {
     let socket: PathBuf = std::env::var_os(SOCKET_ENV)
         .map(PathBuf::from)
         .ok_or(ProcessError::MissingSocketEnv(SOCKET_ENV))?;
@@ -112,10 +112,10 @@ pub async fn run_process_plugin(identity: PluginIdentity) -> Result<(), ProcessE
 }
 
 /// Minimal `Extension` impl — describes identity, reports `READY`,
-/// and returns `UNIMPLEMENTED` for the RPCs plugin authors haven't
+/// and returns `UNIMPLEMENTED` for the RPCs block authors haven't
 /// written handlers for yet.
 struct DefaultPlugin {
-    identity: PluginIdentity,
+    identity: BlockIdentity,
 }
 
 #[tonic::async_trait]
@@ -183,7 +183,7 @@ mod tests {
         let socket = tmp.path().join("sdk.sock");
         std::env::set_var(SOCKET_ENV, &socket);
 
-        let server = tokio::spawn(run_process_plugin(PluginIdentity::new(
+        let server = tokio::spawn(run_process_plugin(BlockIdentity::new(
             "com.acme.sdktest",
             "9.9.9",
         )));

@@ -1,6 +1,6 @@
 //! Author-facing prelude.
 //!
-//! `use extensions_sdk::prelude::*;` brings every name a plugin author
+//! `use blocks_sdk::prelude::*;` brings every name a block author
 //! typically needs into scope. Kept narrow — contract surface only.
 
 pub use crate::ctx::{
@@ -14,5 +14,5 @@ pub use crate::{
     MessageId, Msg, NodeId, NodePath, ParentMatcher, SlotRole, SlotSchema, TriggerPolicy,
 };
 // The derive and the trait share a name — different namespaces, so
-// `use extensions_sdk::prelude::*;` gives you both.
-pub use extensions_sdk_macros::NodeKind;
+// `use blocks_sdk::prelude::*;` gives you both.
+pub use blocks_sdk_macros::NodeKind;

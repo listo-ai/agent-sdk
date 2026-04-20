@@ -8,7 +8,7 @@
 //! call so `requires!` stays a one-liner with no `unwrap_or` ceremony.
 //!
 //! ```ignore
-//! use extensions_sdk::prelude::*;
+//! use blocks_sdk::prelude::*;
 //!
 //! requires! {
 //!     "spi.msg" => "1",

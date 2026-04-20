@@ -1,8 +1,8 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
-//! # `extensions-sdk` — author SDK for node kinds
+//! # `blocks-sdk` — author SDK for node kinds
 //!
 //! Every node kind in the platform — core native, Wasm, or process
-//! plugin — is written against this SDK. One authoring API, three
+//! block — is written against this SDK. One authoring API, three
 //! packaging choices via the mutually-exclusive feature flags `native`
 //! (default), `wasm`, `process`.
 //!
@@ -21,7 +21,7 @@
     all(feature = "wasm", feature = "process"),
 ))]
 compile_error!(
-    "extensions-sdk: features `native`, `wasm`, and `process` are mutually \
+    "blocks-sdk: features `native`, `wasm`, and `process` are mutually \
      exclusive — enable exactly one on each consuming crate"
 );
 
@@ -42,7 +42,7 @@ pub use ctx::{
     DynBehavior, EmitSink, GraphAccess, NodeCtx, TimerHandle, TimerScheduler, TypedBehavior,
 };
 pub use error::NodeError;
-pub use extensions_sdk_macros::NodeKind;
+pub use blocks_sdk_macros::NodeKind;
 pub use node::{InputPort, NodeBehavior, NodeKind};
 pub use settings::ResolvedSettings;
 

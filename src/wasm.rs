@@ -1,15 +1,15 @@
-//! Wasm-plugin guest SDK (feature `wasm`).
+//! Wasm-block guest SDK (feature `wasm`).
 //!
 //! The host speaks a three-function ABI (see
-//! `extensions_host::wasm` for the contract). This module wraps it
-//! so plugin authors write a [`WasmPlugin`] impl + one
+//! `blocks_host::wasm` for the contract). This module wraps it
+//! so block authors write a [`WasmPlugin`] impl + one
 //! [`export_plugin!`] invocation — never raw `extern "C"` /
 //! pointer-packing.
 //!
-//! Minimal plugin:
+//! Minimal block:
 //!
 //! ```ignore
-//! use extensions_sdk::wasm::{self, DescribeResponse, KindDecl, OnInputEnvelope, OutputMsg};
+//! use blocks_sdk::wasm::{self, DescribeResponse, KindDecl, OnInputEnvelope, OutputMsg};
 //!
 //! struct MyPlugin;
 //! impl wasm::WasmPlugin for MyPlugin {
@@ -25,7 +25,7 @@
 //!         Ok(vec![OutputMsg { port: "out".into(), msg_json: (n * 2.0).to_string() }])
 //!     }
 //! }
-//! extensions_sdk::wasm::export_plugin!(MyPlugin);
+//! blocks_sdk::wasm::export_plugin!(MyPlugin);
 //! ```
 //!
 //! # Unsafe
@@ -34,19 +34,19 @@
 //! the host. The workspace policy is `unsafe_code = "forbid"`
 //! elsewhere; here we `deny` at crate level and `allow` narrowly.
 //!
-//! **Build:** the plugin crate is a `cdylib` targeting
+//! **Build:** the block crate is a `cdylib` targeting
 //! `wasm32-unknown-unknown`. One command:
 //!
 //! ```text
 //! cargo build --target wasm32-unknown-unknown --release
 //! ```
 //!
-//! The `.wasm` artifact is the plugin's `contributes.wasm_modules[].path`.
+//! The `.wasm` artifact is the block's `contributes.wasm_modules[].path`.
 
 use serde::{Deserialize, Serialize};
 
 /// Identity + declared kinds — returned from [`WasmPlugin::describe`].
-/// Wire-equivalent to `extensions_host::wasm::DescribeResponse`.
+/// Wire-equivalent to `blocks_host::wasm::DescribeResponse`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DescribeResponse {
     pub extension_id: String,
@@ -162,11 +162,11 @@ pub fn __sdk_on_input<P: WasmPlugin>(env_ptr: i32, env_len: i32) -> i64 {
 /// Pass a type implementing [`WasmPlugin`]:
 ///
 /// ```ignore
-/// extensions_sdk::wasm::export_plugin!(MyPlugin);
+/// blocks_sdk::wasm::export_plugin!(MyPlugin);
 /// ```
 #[macro_export]
 macro_rules! export_plugin {
-    ($plugin:ty) => {
+    ($block:ty) => {
         #[no_mangle]
         pub extern "C" fn alloc(size: i32) -> i32 {
             $crate::wasm::__sdk_alloc(size)
@@ -174,12 +174,12 @@ macro_rules! export_plugin {
 
         #[no_mangle]
         pub extern "C" fn describe() -> i64 {
-            $crate::wasm::__sdk_describe::<$plugin>()
+            $crate::wasm::__sdk_describe::<$block>()
         }
 
         #[no_mangle]
         pub extern "C" fn on_input(env_ptr: i32, env_len: i32) -> i64 {
-            $crate::wasm::__sdk_on_input::<$plugin>(env_ptr, env_len)
+            $crate::wasm::__sdk_on_input::<$block>(env_ptr, env_len)
         }
     };
 }

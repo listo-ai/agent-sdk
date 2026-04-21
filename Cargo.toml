@@ -1,0 +1,55 @@
+[workspace]
+resolver = "2"
+members = [
+    "blocks-sdk",
+    "blocks-sdk-macros",
+    "block-client",
+    "block-domain",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "Apache-2.0"
+publish = true
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+panic = "warn"
+todo = "warn"
+
+[workspace.dependencies]
+# Workspace crates (alias → published name so source code is unchanged)
+blocks-sdk = { path = "blocks-sdk", package = "listo-blocks-sdk" }
+blocks-sdk-macros = { path = "blocks-sdk-macros", package = "listo-blocks-sdk-macros" }
+block-client = { path = "block-client", package = "listo-block-client" }
+block-domain = { path = "block-domain", package = "listo-block-domain" }
+
+# Extracted contracts (listo-ai/contracts) — local path during development
+# Alias as `spi` so all existing `use spi::` code is unchanged
+spi = { path = "../../listo-repos/contracts/spi", package = "listo-spi" }
+
+# transport-grpc: stays in listo-ai/agent; path dep during dev for `process` feature
+# TODO: replace with git dep once agent is published
+transport-grpc = { path = "../../rust/us/crates/transport-grpc" }
+
+# Third-party
+async-trait = "0.1"
+futures-core = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yml = "0.0.12"
+semver = { version = "1", features = ["serde"] }
+thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "0.12", default-features = false, features = ["transport", "codegen", "prost"] }
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+anyhow = "1"

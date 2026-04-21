@@ -30,13 +30,12 @@ blocks-sdk-macros = { path = "blocks-sdk-macros", package = "listo-blocks-sdk-ma
 block-client = { path = "block-client", package = "listo-block-client" }
 block-domain = { path = "block-domain", package = "listo-block-domain" }
 
-# Extracted contracts (listo-ai/contracts) — local path during development
+# Extracted contracts (listo-ai/contracts)
 # Alias as `spi` so all existing `use spi::` code is unchanged
-spi = { path = "../../listo-repos/contracts/spi", package = "listo-spi" }
+spi = { git = "https://github.com/listo-ai/contracts", branch = "main", package = "listo-spi" }
 
-# transport-grpc: stays in listo-ai/agent; path dep during dev for `process` feature
-# TODO: replace with git dep once agent is published
-transport-grpc = { path = "../../rust/us/crates/transport-grpc" }
+# transport-grpc: lives in listo-ai/agent
+transport-grpc = { git = "https://github.com/listo-ai/agent", branch = "master", package = "transport-grpc" }
 
 # Third-party
 async-trait = "0.1"

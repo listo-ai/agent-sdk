@@ -31,13 +31,16 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use std::str::FromStr;
 
 use spi::{KindId, KindManifest, Msg, NodeId, NodePath};
 use tokio::net::UnixListener;
-use tokio_stream::wrappers::UnixListenerStream;
+use tokio::sync::broadcast;
+use tokio_stream::wrappers::{BroadcastStream, UnixListenerStream};
+use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
+use tokio_stream::StreamExt;
 use tonic::{transport::Server, Request, Response, Status};
 use transport_grpc::proto::health_response::Status as HStatus;
 use transport_grpc::{
@@ -236,11 +239,36 @@ impl Extension for DefaultPlugin {
 
     type SubscribeStream =
         Pin<Box<dyn tokio_stream::Stream<Item = Result<SlotEvent, Status>> + Send>>;
+    /// Async back-channel for block-initiated slot writes. Block code
+    /// (e.g. the MQTT `sub` kind on an incoming broker packet) publishes
+    /// a `SlotEvent` via [`publish_slot_event`]; every open Subscribe
+    /// stream receives it and forwards to its agent-side consumer, which
+    /// applies the write to the graph.
+    ///
+    /// This is the only async emit path from a process block today —
+    /// `on_init` / `on_message` RPCs only carry *synchronous* emits
+    /// captured during dispatch (see `CapturingEmitSink`). Use this
+    /// whenever state originates outside the dispatch tick (timers,
+    /// subscriptions, external I/O).
     async fn subscribe(
         &self,
         _req: Request<SubscribeRequest>,
     ) -> Result<Response<Self::SubscribeStream>, Status> {
-        Err(Status::unimplemented("subscribe: driver-side, not wired"))
+        let rx = slot_event_bus().subscribe();
+        // BroadcastStream turns a broadcast::Receiver into a Stream and
+        // quietly drops lagged events rather than closing the channel —
+        // which is what we want: a slow agent-side consumer should not
+        // kill the block's ability to ever emit again.
+        // Drop lag-errors silently — a slow agent-side consumer must
+        // not shut down the block's emit path. The bus capacity is
+        // sized (SLOT_EVENT_BUS_CAP) so this should only trigger under
+        // genuine pathology, and the agent-side consumer logs when it
+        // reconnects and resumes receiving.
+        let stream = BroadcastStream::new(rx).filter_map(|r| match r {
+            Ok(ev) => Some(Ok(ev)),
+            Err(BroadcastStreamRecvError::Lagged(_)) => None,
+        });
+        Ok(Response::new(Box::pin(stream) as Self::SubscribeStream))
     }
 
     async fn invoke(
@@ -423,6 +451,54 @@ impl TimerScheduler for StubScheduler {
         ))
     }
     fn cancel(&self, _handle: TimerHandle) {}
+}
+
+// ---------------------------------------------------------------------------
+// Async slot-event back-channel (block → agent)
+// ---------------------------------------------------------------------------
+
+/// Capacity of the process-wide slot-event broadcast. Large enough that a
+/// brief agent-side hiccup doesn't force lag-drops at normal emission
+/// rates, small enough to bound memory on a pathological producer.
+const SLOT_EVENT_BUS_CAP: usize = 1024;
+
+fn slot_event_bus() -> &'static broadcast::Sender<SlotEvent> {
+    static BUS: OnceLock<broadcast::Sender<SlotEvent>> = OnceLock::new();
+    BUS.get_or_init(|| broadcast::channel(SLOT_EVENT_BUS_CAP).0)
+}
+
+/// Publish a block-initiated slot write. Surfaces on every agent-side
+/// `Subscribe` stream this process has open.
+///
+/// Use when the value's origin is **not** a sync dispatch tick —
+/// e.g. an MQTT sub kind pushing a received message onto its `out`
+/// port, a driver streaming telemetry, or a long-running timer. For
+/// emits that happen *inside* `on_message` / `on_init`, prefer
+/// [`crate::ctx::NodeCtx::emit`] — the CapturingEmitSink returns those
+/// with the RPC response and avoids the bus entirely.
+///
+/// `value` is any serde-serialisable payload; for an output-port write
+/// that should read as a Node-RED msg downstream, pass a [`Msg`] (or
+/// its JSON form). Returns the number of receivers the event reached
+/// (0 if no agent has opened a Subscribe stream yet — which is fine;
+/// the agent is the authoritative surface, dropping on the floor is
+/// correct back-pressure).
+pub fn publish_slot_event(
+    node_path: &NodePath,
+    slot: &str,
+    value: &serde_json::Value,
+) -> usize {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let ev = SlotEvent {
+        node_path: node_path.as_str().to_string(),
+        slot: slot.to_string(),
+        value_json: value.to_string(),
+        timestamp_unix_ms: now_ms,
+    };
+    slot_event_bus().send(ev).unwrap_or(0)
 }
 
 struct NoopBehavior;

@@ -40,7 +40,7 @@ transport-grpc = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
-tokio-stream = { workspace = true, optional = true, features = ["net"] }
+tokio-stream = { workspace = true, optional = true, features = ["net", "sync"] }
 
 
 [dev-dependencies]

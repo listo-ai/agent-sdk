@@ -52,3 +52,16 @@ syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
 anyhow = "1"
+
+# ---------------------------------------------------------------------------
+# Local-dev overrides
+# ---------------------------------------------------------------------------
+# `[patch]` redirects the git URLs above to the sibling checkouts in
+# `~/code/workspace/` when building locally. Published crates/binaries
+# use the pinned git deps; `[patch]` sections are ignored by `cargo
+# publish` and by downstream consumers of this workspace.
+[patch."https://github.com/listo-ai/contracts"]
+listo-spi = { path = "../contracts/spi" }
+
+[patch."https://github.com/listo-ai/agent"]
+transport-grpc = { path = "../agent/crates/transport-grpc" }
